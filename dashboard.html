@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuriSIEM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Syne', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 0.5px solid rgba(255,255,255,0.07);
+    margin-bottom: 24px;
+  }
+  .logo { font-size: 13px; font-weight: 700; letter-spacing: 4px; color: #e0e0e0; text-transform: uppercase; }
+  .logo .accent { color: #E24B4A; }
+  .top-right { display: flex; align-items: center; gap: 12px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #555; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #555; }
+  .dot.live { background: #639922; animation: pulse 2s infinite; }
+  .dot.error { background: #E24B4A; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .refresh-btn {
+    font-size: 11px; padding: 5px 12px; border-radius: 6px;
+    background: transparent; border: 0.5px solid rgba(255,255,255,0.12);
+    color: #666; cursor: pointer; font-family: 'JetBrains Mono', monospace;
+    transition: all .15s;
+  }
+  .refresh-btn:hover { background: #161616; color: #aaa; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 24px; margin-bottom: 24px; }
+  .stat-card { background: #111; border: 0.5px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 16px; }
+  .stat-label { font-size: 10px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-val { font-size: 30px; font-weight: 500; font-family: 'JetBrains Mono', monospace; color: #333; }
+  .stat-val.loaded { color: inherit; }
+  .stat-val.c-blue   { color: #378ADD; }
+  .stat-val.c-red    { color: #E24B4A; }
+  .stat-val.c-amber  { color: #BA7517; }
+  .stat-val.c-green  { color: #639922; }
+  .stat-sub { font-size: 10px; color: #333; margin-top: 4px; }
+
+  .section { padding: 0 24px; margin-bottom: 20px; }
+  .panel { background: #111; border: 0.5px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 18px; }
+  .panel-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: #444; margin-bottom: 16px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 24px; margin-bottom: 20px; }
+
+  /* Timeline */
+  .timeline-canvas { position: relative; width: 100%; height: 130px; }
+
+  /* Alerts */
+  .alert-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid rgba(255,255,255,0.05); }
+  .alert-row:last-child { border-bottom: none; }
+  .sev-badge { font-size: 8px; font-weight: 500; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex-shrink: 0; margin-top: 2px; letter-spacing: 1px; }
+  .sev-1 { background: rgba(226,75,74,0.15); color: #E24B4A; }
+  .sev-2 { background: rgba(186,117,23,0.15); color: #BA7517; }
+  .sev-3 { background: rgba(55,138,221,0.15); color: #378ADD; }
+  .sev-4 { background: rgba(99,153,34,0.15); color: #639922; }
+  .alert-sig { font-size: 12px; color: #ccc; line-height: 1.4; }
+  .alert-meta { font-size: 10px; color: #444; font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+
+  /* Bars */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-label { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #666; width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #1a1a1a; border-radius: 2px; height: 5px; }
+  .bar-fill { height: 5px; border-radius: 2px; }
+  .bar-fill.red  { background: #E24B4A; }
+  .bar-fill.blue { background: #378ADD; }
+  .bar-count { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #444; width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* Events table */
+  .nav-tabs { display: flex; gap: 4px; padding: 0 24px; margin-bottom: 14px; }
+  .nav-tab { font-size: 11px; padding: 5px 13px; border-radius: 6px; background: transparent; border: 0.5px solid rgba(255,255,255,0.08); color: #555; cursor: pointer; font-family: 'Syne', sans-serif; transition: all .15s; }
+  .nav-tab.active { background: #1a1a1a; color: #ccc; border-color: rgba(255,255,255,0.15); }
+  .nav-tab:hover:not(.active) { background: #141414; color: #888; }
+
+  .events-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .events-table th { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #444; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid rgba(255,255,255,0.07); }
+  .events-table td { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #666; padding: 7px 8px; border-bottom: 0.5px solid rgba(255,255,255,0.04); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .events-table tr:hover td { background: #161616; }
+  .events-table th:nth-child(1), .events-table td:nth-child(1) { width: 80px; }
+  .events-table th:nth-child(2), .events-table td:nth-child(2) { width: 70px; }
+  .events-table th:nth-child(3), .events-table td:nth-child(3) { width: 160px; }
+  .events-table th:nth-child(4), .events-table td:nth-child(4) { width: 160px; }
+  .events-table th:nth-child(5), .events-table td:nth-child(5) { width: 60px; }
+  .events-table th:nth-child(6) { width: auto; }
+
+  .type-badge { font-size: 9px; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.5px; }
+  .type-alert   { background: rgba(226,75,74,0.15);  color: #E24B4A; }
+  .type-dns     { background: rgba(99,153,34,0.15);   color: #639922; }
+  .type-http    { background: rgba(55,138,221,0.15);  color: #378ADD; }
+  .type-tls     { background: rgba(155,143,212,0.15); color: #9b8fd4; }
+  .type-flow    { background: rgba(255,255,255,0.06); color: #666; }
+  .type-anomaly { background: rgba(186,117,23,0.15);  color: #BA7517; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 32px 16px; color: #333; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+  .empty-state .icon { font-size: 24px; margin-bottom: 8px; opacity: 0.3; }
+
+  /* Error banner */
+  .error-banner { margin: 0 24px 16px; padding: 10px 14px; background: rgba(226,75,74,0.08); border: 0.5px solid rgba(226,75,74,0.2); border-radius: 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #E24B4A; display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top-bar">
+    <div class="logo"><span class="accent">■</span> Suri<span class="accent">·</span>SIEM</div>
+    <div class="top-right">
+      <div class="status-pill">
+        <div class="dot" id="status-dot"></div>
+        <span id="status-text">connecting...</span>
+      </div>
+      <button class="refresh-btn" onclick="refresh()">↻ refresh</button>
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner">
+    ⚠ Cannot reach backend at /api — make sure backend.py is running on port 3000
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Events</div>
+      <div class="stat-val c-blue" id="s-total">—</div>
+      <div class="stat-sub">all time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Alerts</div>
+      <div class="stat-val c-red" id="s-alerts">—</div>
+      <div class="stat-sub">requires review</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">DNS Queries</div>
+      <div class="stat-val c-amber" id="s-dns">—</div>
+      <div class="stat-sub">logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">HTTP Flows</div>
+      <div class="stat-val c-green" id="s-http">—</div>
+      <div class="stat-sub">inspected</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="panel-title">Event timeline — last 30 entries</div>
+      <div class="timeline-canvas">
+        <canvas id="timelineChart" role="img" aria-label="Event count over time">Timeline of security events</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="panel">
+      <div class="panel-title">Recent alerts</div>
+      <div id="alerts-list">
+        <div class="empty-state"><div class="icon">◎</div>no alerts yet</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Top source IPs</div>
+      <div id="top-ips"><div class="empty-state"><div class="icon">◎</div>no data yet</div></div>
+      <div class="panel-title" style="margin-top:20px;">Top alert signatures</div>
+      <div id="top-sigs"><div class="empty-state"><div class="icon">◎</div>no alerts yet</div></div>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="setTab('all',this)">All</button>
+    <button class="nav-tab" onclick="setTab('alert',this)">Alerts</button>
+    <button class="nav-tab" onclick="setTab('dns',this)">DNS</button>
+    <button class="nav-tab" onclick="setTab('http',this)">HTTP</button>
+    <button class="nav-tab" onclick="setTab('tls',this)">TLS</button>
+    <button class="nav-tab" onclick="setTab('flow',this)">Flows</button>
+  </div>
+
+  <div class="section">
+    <div class="panel" style="overflow-x:auto;">
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th>Time</th><th>Type</th><th>Src IP</th><th>Dest IP</th>
+            <th>Proto</th><th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="events-body">
+          <tr><td colspan="6"><div class="empty-state"><div class="icon">◎</div>waiting for events...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const BASE = '/api';
+let timelineChart = null;
+let currentTab = 'all';
+let backendOK = false;
+
+function setStatus(ok) {
+  backendOK = ok;
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const err  = document.getElementById('error-banner');
+  if (ok) {
+    dot.className  = 'dot live';
+    text.textContent = new Date().toLocaleTimeString('en-US',{hour12:false, timeZone:'Asia/Kolkata'});
+    err.style.display = 'none';
+  } else {
+    dot.className  = 'dot error';
+    text.textContent = 'backend offline';
+    err.style.display = 'block';
+  }
+}
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(4000)});
+    if (!r.ok) throw new Error('bad response');
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+function renderStats(d) {
+  document.getElementById('s-total').textContent  = d.total.toLocaleString();
+  document.getElementById('s-alerts').textContent = d.alerts.toLocaleString();
+  document.getElementById('s-dns').textContent    = d.dns.toLocaleString();
+  document.getElementById('s-http').textContent   = d.http.toLocaleString();
+  renderTimeline(d.timeline || []);
+  renderTopIPs(d.top_sources || []);
+  renderTopSigs(d.top_signatures || []);
+}
+
+function renderTimeline(data) {
+  const ctx = document.getElementById('timelineChart').getContext('2d');
+  if (timelineChart) timelineChart.destroy();
+
+  if (!data.length) {
+    timelineChart = null;
+    return;
+  }
+
+  const labels = data.map(d => d.minute ? d.minute.slice(11,16) : '');
+  const vals   = data.map(d => d.hits);
+
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Events',
+        data: vals,
+        borderColor: '#378ADD',
+        borderWidth: 1.5,
+        fill: true,
+        backgroundColor: 'rgba(55,138,221,0.06)',
+        pointRadius: 0,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.03)' },
+          ticks: { color: '#444', font: { family: 'JetBrains Mono', size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.03)' },
+          ticks: { color: '#444', font: { family: 'JetBrains Mono', size: 9 } },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function renderTopIPs(data) {
+  const el = document.getElementById('top-ips');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="icon">◎</div>no data yet</div>'; return; }
+  const max = data[0].hits || 1;
+  el.innerHTML = data.map(d => `
+    <div class="bar-row">
+      <span class="bar-label" title="${d.src_ip}">${d.src_ip}</span>
+      <div class="bar-track"><div class="bar-fill red" style="width:${Math.round(d.hits/max*100)}%"></div></div>
+      <span class="bar-count">${d.hits}</span>
+    </div>
+  `).join('');
+}
+
+function renderTopSigs(data) {
+  const el = document.getElementById('top-sigs');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="icon">◎</div>no alerts yet</div>'; return; }
+  const max = data[0].hits || 1;
+  el.innerHTML = data.map(d => `
+    <div class="bar-row">
+      <span class="bar-label" title="${d.alert_signature}">${d.alert_signature}</span>
+      <div class="bar-track"><div class="bar-fill blue" style="width:${Math.round(d.hits/max*100)}%"></div></div>
+      <span class="bar-count">${d.hits}</span>
+    </div>
+  `).join('');
+}
+
+function renderAlerts(alerts) {
+  const el = document.getElementById('alerts-list');
+  if (!alerts.length) { el.innerHTML = '<div class="empty-state"><div class="icon">◎</div>no alerts yet</div>'; return; }
+  const sevLabel = {1:'CRIT', 2:'HIGH', 3:'MED', 4:'LOW'};
+  el.innerHTML = alerts.slice(0,8).map(a => `
+    <div class="alert-row">
+      <span class="sev-badge sev-${a.alert_severity||3}">${sevLabel[a.alert_severity]||'MED'}</span>
+      <div>
+        <div class="alert-sig">${a.alert_signature || 'Unknown signature'}</div>
+        <div class="alert-meta">${a.src_ip||'?'} → ${a.dest_ip||'?'} · ${a.proto||''} · ${a.timestamp ? new Date(a.timestamp).toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Kolkata'}) : '—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderEvents(events) {
+  const tbody = document.getElementById('events-body');
+  if (!events.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">◎</div>no events yet — generate traffic to populate</div></td></tr>';
+    return;
+  }
+  const typeClass = {alert:'type-alert', dns:'type-dns', http:'type-http', tls:'type-tls', flow:'type-flow', anomaly:'type-anomaly'};
+  tbody.innerHTML = events.slice(0,100).map(e => `
+    <tr>
+      <td>${e.timestamp ? new Date(e.timestamp).toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Kolkata'}) : '—'}</td>
+      <td><span class="type-badge ${typeClass[e.event_type]||'type-flow'}">${e.event_type||'?'}</span></td>
+      <td>${e.src_ip||'—'}${e.src_port ? '<span style="color:#333">:'+e.src_port+'</span>' : ''}</td>
+      <td>${e.dest_ip||'—'}${e.dest_port ? '<span style="color:#333">:'+e.dest_port+'</span>' : ''}</td>
+      <td>${e.proto||'—'}</td>
+      <td style="color:#555">${e.alert_signature||e.dns_query||e.http_url||'—'}</td>
+    </tr>
+  `).join('');
+}
+
+function setTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadEvents();
+}
+
+async function loadEvents() {
+  const url = currentTab === 'all'
+    ? `${BASE}/events?limit=100`
+    : `${BASE}/events?type=${currentTab}&limit=100`;
+  const data = await fetchJSON(url);
+  renderEvents(data || []);
+}
+
+async function refresh() {
+  const stats  = await fetchJSON(`${BASE}/stats`);
+  const alerts = await fetchJSON(`${BASE}/alerts`);
+
+  if (stats) {
+    setStatus(true);
+    renderStats(stats);
+  } else {
+    setStatus(false);
+    // reset to dashes when backend is down
+    ['s-total','s-alerts','s-dns','s-http'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    renderAlerts([]);
+    renderTopIPs([]);
+    renderTopSigs([]);
+    renderTimeline([]);
+  }
+
+  if (alerts) renderAlerts(alerts);
+  await loadEvents();
+}
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>
